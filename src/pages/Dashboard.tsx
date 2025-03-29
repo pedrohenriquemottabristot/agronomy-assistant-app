@@ -1,5 +1,4 @@
-
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -11,35 +10,83 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabaseService } from "@/lib/services/supabaseService";
+import type { Cliente, Pedido } from "@/types";
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const [stats, setStats] = useState({
+    totalPedidos: 0,
+    pedidosHoje: 0,
+    totalProdutos: 0,
+    produtosBaixoEstoque: 0,
+    totalClientes: 0,
+    clientesNovos: 0,
+    pedidosPendentes: 0
+  });
 
-  const stats = [
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      // Carregar clientes
+      const clientes = await supabaseService.getClientes();
+      const hoje = new Date();
+      const inicioDoDia = new Date(hoje.setHours(0, 0, 0, 0));
+      const clientesNovos = clientes.filter(cliente => 
+        new Date(cliente.created_at) >= inicioDoDia
+      );
+
+      // Carregar pedidos
+      const pedidos = await supabaseService.getPedidos();
+      const pedidosHoje = pedidos.filter(pedido => 
+        new Date(pedido.created_at) >= inicioDoDia
+      );
+      const pedidosPendentes = pedidos.filter(pedido => 
+        pedido.status === 'pendente'
+      );
+
+      setStats({
+        totalPedidos: pedidos.length,
+        pedidosHoje: pedidosHoje.length,
+        totalProdutos: 15, // TODO: Implementar contagem de produtos
+        produtosBaixoEstoque: 2, // TODO: Implementar verificação de estoque
+        totalClientes: clientes.length,
+        clientesNovos: clientesNovos.length,
+        pedidosPendentes: pedidosPendentes.length
+      });
+    } catch (error) {
+      console.error("Erro ao carregar dados do dashboard:", error);
+    }
+  };
+
+  const dashboardStats = [
     {
       title: "Pedidos Totais",
-      value: "24",
-      description: "3 pedidos hoje",
+      value: stats.totalPedidos.toString(),
+      description: `${stats.pedidosHoje} pedidos hoje`,
       icon: <ShoppingBag className="h-6 w-6 text-agro-primary" />,
       link: "/orders",
     },
     {
       title: "Produtos",
-      value: "15",
-      description: "2 com estoque baixo",
+      value: stats.totalProdutos.toString(),
+      description: `${stats.produtosBaixoEstoque} com estoque baixo`,
       icon: <Package className="h-6 w-6 text-agro-secondary" />,
       link: "/products",
     },
     {
       title: "Clientes",
-      value: "8",
-      description: "1 novo esta semana",
+      value: stats.totalClientes.toString(),
+      description: `${stats.clientesNovos} novos esta semana`,
       icon: <Users className="h-6 w-6 text-agro-accent" />,
       link: "/customers",
     },
     {
       title: "Pedidos Pendentes",
-      value: "3",
+      value: stats.pedidosPendentes.toString(),
       description: "Aguardando aprovação",
       icon: <CalendarDays className="h-6 w-6 text-orange-500" />,
       link: "/orders?status=pendente",
@@ -77,7 +124,7 @@ const Dashboard = () => {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat, index) => (
+        {dashboardStats.map((stat, index) => (
           <Card key={index}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
@@ -99,47 +146,36 @@ const Dashboard = () => {
       </div>
 
       <div className="mt-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold">Pedidos Recentes</h2>
-          <Button
-            variant="outline"
-            className="text-agro-primary border-agro-primary hover:bg-agro-light"
-            asChild
-          >
-            <Link to="/orders">Ver todos</Link>
-          </Button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-muted">
-                <th className="py-3 px-4 text-left text-sm font-medium">ID</th>
-                <th className="py-3 px-4 text-left text-sm font-medium">Cliente</th>
-                <th className="py-3 px-4 text-left text-sm font-medium">Data</th>
-                <th className="py-3 px-4 text-left text-sm font-medium">Status</th>
-                <th className="py-3 px-4 text-left text-sm font-medium">Valor</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentOrders.map((order, index) => (
-                <tr key={index} className="border-b hover:bg-muted/50">
-                  <td className="py-3 px-4 text-sm">
-                    <Link to={`/orders/${order.id}`} className="text-agro-primary hover:underline">
-                      {order.id}
-                    </Link>
-                  </td>
-                  <td className="py-3 px-4 text-sm">{order.customer}</td>
-                  <td className="py-3 px-4 text-sm">{order.date}</td>
-                  <td className="py-3 px-4 text-sm">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                      {order.status}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-sm font-medium">{order.amount}</td>
+        <h2 className="text-xl font-semibold mb-4">Pedidos Recentes</h2>
+        <div className="bg-white rounded-lg shadow">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {recentOrders.map((order) => (
+                  <tr key={order.id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{order.id}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.customer}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.date}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(order.status)}`}>
+                        {order.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.amount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

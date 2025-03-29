@@ -30,15 +30,17 @@ const Customers = () => {
 
   const loadClientes = async () => {
     try {
-      const data = await supabaseService.getClientes();
-      setClientes(data);
+      console.log('Carregando clientes...')
+      const data = await supabaseService.getClientes()
+      console.log('Clientes carregados:', data)
+      setClientes(data)
     } catch (error) {
-      console.error("Erro ao carregar clientes:", error);
-      toast.error("Erro ao carregar clientes");
+      console.error("Erro ao carregar clientes:", error)
+      toast.error("Erro ao carregar clientes")
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -181,55 +183,61 @@ const Customers = () => {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filteredClientes.map((cliente) => (
-          <Card key={cliente.id}>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle>{cliente.nome}</CardTitle>
-                  <CardDescription>ID: {cliente.id}</CardDescription>
+        {filteredClientes.length === 0 ? (
+          <div className="col-span-full text-center py-8">
+            <p className="text-muted-foreground">Nenhum cliente encontrado</p>
+          </div>
+        ) : (
+          filteredClientes.map((cliente) => (
+            <Card key={cliente.id}>
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle>{cliente.nome}</CardTitle>
+                    <CardDescription>ID: {cliente.id}</CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleViewDetails(cliente)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(cliente)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(cliente)}
+                      className="text-red-500 hover:text-red-600"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleViewDetails(cliente)}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleEdit(cliente)}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDelete(cliente)}
-                    className="text-red-500 hover:text-red-600"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <p className="text-sm">
+                    <span className="font-medium">Email:</span> {cliente.email}
+                  </p>
+                  <p className="text-sm">
+                    <span className="font-medium">Telefone:</span> {cliente.telefone}
+                  </p>
+                  <p className="text-sm">
+                    <span className="font-medium">Endereços:</span> {cliente.enderecos?.length || 0}
+                  </p>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <p className="text-sm">
-                  <span className="font-medium">Email:</span> {cliente.email}
-                </p>
-                <p className="text-sm">
-                  <span className="font-medium">Telefone:</span> {cliente.telefone}
-                </p>
-                <p className="text-sm">
-                  <span className="font-medium">Endereços:</span> {cliente.enderecos?.length || 0}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
     </div>
   );

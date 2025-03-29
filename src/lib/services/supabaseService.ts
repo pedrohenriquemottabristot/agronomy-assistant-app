@@ -24,8 +24,13 @@ export const supabaseService = {
       .select('*')
       .order('nome')
 
-    if (error) throw error
-    return data
+    if (error) {
+      console.error('Erro ao buscar clientes:', error)
+      throw error
+    }
+
+    console.log('Clientes encontrados:', data)
+    return data || []
   },
 
   async updateCliente(id: string, cliente: { nome: string; email: string; telefone: string }) {
