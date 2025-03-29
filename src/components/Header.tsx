@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -19,6 +18,9 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, userName, onLogout }) => {
     <div className="flex items-center gap-6">
       <Link to="/dashboard" className="text-foreground hover:text-agro-primary transition-colors">
         Dashboard
+      </Link>
+      <Link to="/customers" className="text-foreground hover:text-agro-primary transition-colors">
+        Clientes
       </Link>
       <Link to="/orders" className="text-foreground hover:text-agro-primary transition-colors">
         Pedidos
@@ -77,6 +79,9 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, userName, onLogout }) => {
                 <div className="flex flex-col gap-6 pt-10">
                   <Link to="/dashboard" className="text-lg font-medium">
                     Dashboard
+                  </Link>
+                  <Link to="/customers" className="text-lg font-medium">
+                    Clientes
                   </Link>
                   <Link to="/orders" className="text-lg font-medium">
                     Pedidos

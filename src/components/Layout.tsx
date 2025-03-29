@@ -1,8 +1,9 @@
-
 import React, { ReactNode } from "react";
 import Header from "./Header";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { Users, ShoppingCart, Package, Home } from "lucide-react";
 
 interface LayoutProps {
   children: ReactNode;

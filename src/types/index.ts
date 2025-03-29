@@ -33,13 +33,13 @@ export interface Order {
   createdAt: string;
 }
 
-export type Cliente = {
-  id: string
-  nome: string
-  email: string
-  telefone: string
-  enderecos: Endereco[]
-  created_at: string
+export interface Cliente {
+  id: string;
+  nome: string;
+  email: string;
+  telefone: string;
+  created_at: string;
+  enderecos?: Endereco[];
 }
 
 export type Endereco = {

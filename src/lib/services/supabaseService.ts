@@ -22,7 +22,39 @@ export const supabaseService = {
     const { data, error } = await supabase
       .from('clientes')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('nome')
+
+    if (error) throw error
+    return data
+  },
+
+  async updateCliente(id: string, cliente: { nome: string; email: string; telefone: string }) {
+    const { data, error } = await supabase
+      .from('clientes')
+      .update(cliente)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async deleteCliente(id: string) {
+    const { error } = await supabase
+      .from('clientes')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+  },
+
+  async getClienteById(id: string) {
+    const { data, error } = await supabase
+      .from('clientes')
+      .select('*')
+      .eq('id', id)
+      .single()
 
     if (error) throw error
     return data
@@ -48,6 +80,27 @@ export const supabaseService = {
 
     if (error) throw error
     return data
+  },
+
+  async updateEndereco(id: string, endereco: Omit<Endereco, 'id' | 'cliente_id'>) {
+    const { data, error } = await supabase
+      .from('enderecos')
+      .update(endereco)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async deleteEndereco(id: string) {
+    const { error } = await supabase
+      .from('enderecos')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
   },
 
   // Pedidos
