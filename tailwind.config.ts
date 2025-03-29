@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,7 +62,15 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
-				}
+				},
+                // Cores personalizadas para o tema agrícola
+                agro: {
+                    primary: '#4CAF50',
+                    secondary: '#388E3C',
+                    accent: '#795548',
+                    light: '#C8E6C9',
+                    dark: '#2E7D32'
+                }
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
