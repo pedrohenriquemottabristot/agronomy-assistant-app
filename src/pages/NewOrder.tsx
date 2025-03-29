@@ -1,11 +1,11 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { 
   Table, 
   TableBody, 
@@ -17,22 +17,8 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Plus, X, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-const products = [
-  { id: "PRD001", name: "Fertilizante NPK 10-10-10", price: 120 },
-  { id: "PRD002", name: "Defensivo Agrícola", price: 89 },
-  { id: "PRD003", name: "Sementes de Milho", price: 250 },
-  { id: "PRD004", name: "Adubo Orgânico", price: 65 },
-  { id: "PRD005", name: "Herbicida Seletivo", price: 110 },
-  { id: "PRD006", name: "Sementes de Soja", price: 320 },
-];
-
-const customers = [
-  { id: "CLT001", name: "João Silva" },
-  { id: "CLT002", name: "Maria Oliveira" },
-  { id: "CLT003", name: "Carlos Santos" },
-  { id: "CLT004", name: "Ana Pereira" },
-];
+import { supabaseService } from "@/lib/services/supabaseService";
+import type { Cliente, Produto, Endereco } from "@/types";
 
 interface OrderItem {
   productId: string;
@@ -44,23 +30,90 @@ interface OrderItem {
 const NewOrder = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [customerId, setCustomerId] = useState("");
+  const [enderecoId, setEnderecoId] = useState("");
+  const [formaPagamento, setFormaPagamento] = useState<"dinheiro" | "cartao_credito" | "cartao_debito" | "pix">("dinheiro");
   const [items, setItems] = useState<OrderItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [enderecos, setEnderecos] = useState<Endereco[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isEnderecoDialogOpen, setIsEnderecoDialogOpen] = useState(false);
+  const [novoEndereco, setNovoEndereco] = useState({
+    rua: "",
+    numero: "",
+    complemento: "",
+    bairro: "",
+    cidade: "",
+    estado: "",
+    cep: "",
+    is_principal: false,
+  });
   
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  useEffect(() => {
+    if (customerId) {
+      loadEnderecos();
+    } else {
+      setEnderecos([]);
+      setEnderecoId("");
+    }
+  }, [customerId]);
+
+  const loadData = async () => {
+    try {
+      const [clientesData, produtosData] = await Promise.all([
+        supabaseService.getClientes(),
+        supabaseService.getProdutos()
+      ]);
+      setClientes(clientesData);
+      setProdutos(produtosData);
+    } catch (error) {
+      console.error("Erro ao carregar dados:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os dados necessários",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadEnderecos = async () => {
+    try {
+      const enderecosData = await supabaseService.getEnderecosByCliente(customerId);
+      setEnderecos(enderecosData);
+      if (enderecosData.length > 0) {
+        setEnderecoId(enderecosData[0].id);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar endereços:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os endereços do cliente",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleAddItem = () => {
     if (!selectedProduct || quantity < 1) return;
 
-    const product = products.find(p => p.id === selectedProduct);
+    const product = produtos.find(p => p.id === selectedProduct);
     if (!product) return;
 
     const newItem: OrderItem = {
       productId: product.id,
-      productName: product.name,
-      price: product.price,
+      productName: product.nome,
+      price: product.preco,
       quantity: quantity
     };
 
@@ -79,12 +132,12 @@ const NewOrder = () => {
     return items.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (items.length === 0 || !customerId) {
+    if (items.length === 0 || !customerId || !enderecoId) {
       toast({
         title: "Informações incompletas",
-        description: "Adicione pelo menos um item e selecione um cliente.",
+        description: "Adicione pelo menos um item, selecione um cliente e um endereço de entrega.",
         variant: "destructive",
       });
       return;
@@ -92,16 +145,80 @@ const NewOrder = () => {
 
     setIsSubmitting(true);
 
-    // Simulação de envio - será substituído por integração com Supabase
-    setTimeout(() => {
+    try {
+      await supabaseService.createPedido({
+        cliente_id: customerId,
+        endereco_id: enderecoId,
+        observacao: "Pedido criado via sistema",
+        forma_pagamento: formaPagamento,
+        valor_total: calculateTotal(),
+        status: "pendente"
+      });
+
       toast({
         title: "Pedido criado com sucesso!",
         description: "O pedido foi registrado no sistema.",
       });
-      setIsSubmitting(false);
       navigate("/orders");
-    }, 1000);
+    } catch (error) {
+      console.error("Erro ao criar pedido:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível criar o pedido. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  const handleSaveEndereco = async () => {
+    if (!customerId) {
+      toast({
+        title: "Erro",
+        description: "Selecione um cliente primeiro",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const enderecoData = await supabaseService.createEndereco({
+        ...novoEndereco,
+        cliente_id: customerId,
+      });
+
+      setEnderecos([...enderecos, enderecoData]);
+      setEnderecoId(enderecoData.id);
+      setIsEnderecoDialogOpen(false);
+      setNovoEndereco({
+        rua: "",
+        numero: "",
+        complemento: "",
+        bairro: "",
+        cidade: "",
+        estado: "",
+        cep: "",
+        is_principal: false,
+      });
+
+      toast({
+        title: "Sucesso",
+        description: "Endereço cadastrado com sucesso!",
+      });
+    } catch (error) {
+      console.error("Erro ao cadastrar endereço:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível cadastrar o endereço",
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (isLoading) {
+    return <div>Carregando dados...</div>;
+  }
 
   return (
     <div className="container max-w-4xl py-8 px-4">
@@ -117,9 +234,9 @@ const NewOrder = () => {
           <Card>
             <CardHeader>
               <CardTitle>Informações do Cliente</CardTitle>
-              <CardDescription>Selecione o cliente para este pedido</CardDescription>
+              <CardDescription>Selecione o cliente e o endereço de entrega</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="customer">Cliente</Label>
                 <Select onValueChange={setCustomerId} value={customerId} required>
@@ -127,11 +244,55 @@ const NewOrder = () => {
                     <SelectValue placeholder="Selecione um cliente" />
                   </SelectTrigger>
                   <SelectContent>
-                    {customers.map(customer => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name}
+                    {clientes.map(cliente => (
+                      <SelectItem key={cliente.id} value={cliente.id}>
+                        {cliente.nome}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {customerId && (
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="endereco">Endereço de Entrega</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEnderecoDialogOpen(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Novo Endereço
+                    </Button>
+                  </div>
+                  <Select onValueChange={setEnderecoId} value={enderecoId} required>
+                    <SelectTrigger id="endereco">
+                      <SelectValue placeholder="Selecione o endereço de entrega" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {enderecos.map(endereco => (
+                        <SelectItem key={endereco.id} value={endereco.id}>
+                          {`${endereco.rua}, ${endereco.numero} - ${endereco.bairro}, ${endereco.cidade}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div>
+                <Label htmlFor="pagamento">Forma de Pagamento</Label>
+                <Select onValueChange={(value: "dinheiro" | "cartao_credito" | "cartao_debito" | "pix") => setFormaPagamento(value)} value={formaPagamento} required>
+                  <SelectTrigger id="pagamento">
+                    <SelectValue placeholder="Selecione a forma de pagamento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                    <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
+                    <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
+                    <SelectItem value="pix">PIX</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -141,98 +302,100 @@ const NewOrder = () => {
           <Card>
             <CardHeader>
               <CardTitle>Itens do Pedido</CardTitle>
-              <CardDescription>Adicione os produtos para este pedido</CardDescription>
+              <CardDescription>Adicione os produtos ao pedido</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-4 items-end mb-4">
-                <div>
+              <div className="flex gap-4 mb-4">
+                <div className="flex-1">
                   <Label htmlFor="product">Produto</Label>
                   <Select onValueChange={setSelectedProduct} value={selectedProduct}>
                     <SelectTrigger id="product">
                       <SelectValue placeholder="Selecione um produto" />
                     </SelectTrigger>
                     <SelectContent>
-                      {products.map(product => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name} - R${product.price.toFixed(2)}
+                      {produtos.map(produto => (
+                        <SelectItem key={produto.id} value={produto.id}>
+                          {produto.nome} - R$ {produto.preco.toFixed(2)}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
+                <div className="w-32">
                   <Label htmlFor="quantity">Quantidade</Label>
                   <Input
                     id="quantity"
                     type="number"
                     min="1"
                     value={quantity}
-                    onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                    className="w-full md:w-24"
+                    onChange={(e) => setQuantity(Number(e.target.value))}
                   />
                 </div>
-                <Button 
-                  type="button" 
-                  onClick={handleAddItem}
-                  className="bg-agro-primary hover:bg-agro-dark"
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Adicionar
-                </Button>
+                <div className="flex items-end">
+                  <Button
+                    type="button"
+                    onClick={handleAddItem}
+                    disabled={!selectedProduct || quantity < 1}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar
+                  </Button>
+                </div>
               </div>
 
-              {items.length > 0 ? (
-                <div className="border rounded-md overflow-hidden">
+              {items.length === 0 ? (
+                <div className="text-center py-10 border rounded-md border-dashed">
+                  <p className="text-muted-foreground">
+                    Nenhum item adicionado ao pedido.
+                  </p>
+                </div>
+              ) : (
+                <>
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Produto</TableHead>
-                        <TableHead className="text-right">Qtd</TableHead>
-                        <TableHead className="text-right">Preço Unit.</TableHead>
-                        <TableHead className="text-right">Subtotal</TableHead>
-                        <TableHead className="w-[50px]"></TableHead>
+                        <TableHead className="text-right">Preço</TableHead>
+                        <TableHead className="text-right">Quantidade</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                        <TableHead className="w-[100px]"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {items.map((item, index) => (
                         <TableRow key={index}>
                           <TableCell>{item.productName}</TableCell>
-                          <TableCell className="text-right">{item.quantity}</TableCell>
-                          <TableCell className="text-right">R${item.price.toFixed(2)}</TableCell>
-                          <TableCell className="text-right font-medium">
-                            R${(item.quantity * item.price).toFixed(2)}
+                          <TableCell className="text-right">
+                            R$ {item.price.toFixed(2)}
                           </TableCell>
-                          <TableCell>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                          <TableCell className="text-right">{item.quantity}</TableCell>
+                          <TableCell className="text-right">
+                            R$ {(item.price * item.quantity).toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
                               onClick={() => handleRemoveItem(index)}
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
                             >
-                              <X className="h-4 w-4" />
-                              <span className="sr-only">Remover</span>
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
-                </div>
-              ) : (
-                <div className="text-center py-10 border rounded-md border-dashed">
-                  <p className="text-muted-foreground">
-                    Nenhum item adicionado ao pedido.
-                  </p>
-                </div>
-              )}
-
-              {items.length > 0 && (
-                <div className="mt-4 flex justify-end">
-                  <div className="text-right">
-                    <div className="text-sm text-muted-foreground">Total</div>
-                    <div className="text-2xl font-bold">R${calculateTotal().toFixed(2)}</div>
+                  <Separator className="my-4" />
+                  <div className="flex justify-end">
+                    <div className="text-right">
+                      <div className="text-sm text-muted-foreground">Total</div>
+                      <div className="text-2xl font-bold">
+                        R$ {calculateTotal().toFixed(2)}
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -250,12 +413,101 @@ const NewOrder = () => {
           <Button
             type="submit"
             className="bg-agro-primary hover:bg-agro-dark"
-            disabled={isSubmitting || items.length === 0 || !customerId}
+            disabled={isSubmitting || items.length === 0 || !customerId || !enderecoId}
           >
             {isSubmitting ? "Salvando..." : "Finalizar Pedido"}
           </Button>
         </div>
       </form>
+
+      <Dialog open={isEnderecoDialogOpen} onOpenChange={setIsEnderecoDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Novo Endereço</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="rua">Rua</Label>
+              <Input
+                id="rua"
+                value={novoEndereco.rua}
+                onChange={(e) => setNovoEndereco({ ...novoEndereco, rua: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="numero">Número</Label>
+              <Input
+                id="numero"
+                value={novoEndereco.numero}
+                onChange={(e) => setNovoEndereco({ ...novoEndereco, numero: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="complemento">Complemento</Label>
+              <Input
+                id="complemento"
+                value={novoEndereco.complemento}
+                onChange={(e) => setNovoEndereco({ ...novoEndereco, complemento: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bairro">Bairro</Label>
+              <Input
+                id="bairro"
+                value={novoEndereco.bairro}
+                onChange={(e) => setNovoEndereco({ ...novoEndereco, bairro: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cidade">Cidade</Label>
+              <Input
+                id="cidade"
+                value={novoEndereco.cidade}
+                onChange={(e) => setNovoEndereco({ ...novoEndereco, cidade: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="estado">Estado</Label>
+              <Input
+                id="estado"
+                value={novoEndereco.estado}
+                onChange={(e) => setNovoEndereco({ ...novoEndereco, estado: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cep">CEP</Label>
+              <Input
+                id="cep"
+                value={novoEndereco.cep}
+                onChange={(e) => setNovoEndereco({ ...novoEndereco, cep: e.target.value })}
+                required
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="is_principal"
+                checked={novoEndereco.is_principal}
+                onChange={(e) => setNovoEndereco({ ...novoEndereco, is_principal: e.target.checked })}
+              />
+              <Label htmlFor="is_principal">Endereço Principal</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsEnderecoDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={handleSaveEndereco}>
+              Salvar Endereço
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

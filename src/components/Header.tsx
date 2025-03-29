@@ -16,7 +16,7 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, userName, onLogout }) => {
 
   const NavLinks = () => (
     <div className="flex items-center gap-6">
-      <Link to="/dashboard" className="text-foreground hover:text-agro-primary transition-colors">
+      <Link to="/" className="text-foreground hover:text-agro-primary transition-colors">
         Dashboard
       </Link>
       <Link to="/customers" className="text-foreground hover:text-agro-primary transition-colors">
@@ -77,7 +77,7 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, userName, onLogout }) => {
               </SheetTrigger>
               <SheetContent>
                 <div className="flex flex-col gap-6 pt-10">
-                  <Link to="/dashboard" className="text-lg font-medium">
+                  <Link to="/" className="text-lg font-medium">
                     Dashboard
                   </Link>
                   <Link to="/customers" className="text-lg font-medium">

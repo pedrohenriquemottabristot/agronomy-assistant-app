@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,62 +9,32 @@ import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Calendar as CalendarIcon, Plus, Search, Filter } from "lucide-react";
+import { supabaseService } from "@/lib/services/supabaseService";
+import { toast } from "sonner";
+import type { Pedido } from "@/types";
 
 const Orders = () => {
   const [date, setDate] = useState<Date>();
   const [status, setStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const orders = [
-    { 
-      id: "PED001", 
-      customer: "João Silva", 
-      date: "15/06/2023", 
-      status: "entregue", 
-      amount: "R$ 560,00",
-      items: "Fertilizante NPK, Defensivo agrícola" 
-    },
-    { 
-      id: "PED002", 
-      customer: "Maria Oliveira", 
-      date: "12/06/2023", 
-      status: "aprovado", 
-      amount: "R$ 890,00",
-      items: "Sementes de milho, Fungicida" 
-    },
-    { 
-      id: "PED003", 
-      customer: "Carlos Santos", 
-      date: "10/06/2023", 
-      status: "pendente", 
-      amount: "R$ 350,00",
-      items: "Adubo orgânico" 
-    },
-    { 
-      id: "PED004", 
-      customer: "Ana Pereira", 
-      date: "08/06/2023", 
-      status: "cancelado", 
-      amount: "R$ 720,00",
-      items: "Calcário, Inseticida" 
-    },
-    { 
-      id: "PED005", 
-      customer: "Paulo Ribeiro", 
-      date: "05/06/2023", 
-      status: "entregue", 
-      amount: "R$ 480,00",
-      items: "Herbicida, Regulador de crescimento" 
-    },
-    { 
-      id: "PED006", 
-      customer: "Lucia Fernandes", 
-      date: "01/06/2023", 
-      status: "entregue", 
-      amount: "R$ 930,00",
-      items: "Kit de irrigação, Fertilizante foliar" 
-    },
-  ];
+  useEffect(() => {
+    loadPedidos();
+  }, []);
+
+  const loadPedidos = async () => {
+    try {
+      const data = await supabaseService.getPedidos();
+      setPedidos(data);
+    } catch (error) {
+      console.error("Erro ao carregar pedidos:", error);
+      toast.error("Erro ao carregar pedidos");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -82,15 +52,19 @@ const Orders = () => {
   };
 
   // Filtragem de pedidos
-  const filteredOrders = orders.filter(order => {
+  const filteredPedidos = pedidos.filter(pedido => {
     const matchesSearch = searchQuery === "" || 
-      order.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.id.toLowerCase().includes(searchQuery.toLowerCase());
+      pedido.cliente?.nome.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      pedido.id.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const matchesStatus = status === "all" || order.status === status;
+    const matchesStatus = status === "all" || pedido.status === status;
     
     return matchesSearch && matchesStatus;
   });
+
+  if (isLoading) {
+    return <div>Carregando pedidos...</div>;
+  }
 
   return (
     <div className="container px-4 py-8">
@@ -168,34 +142,40 @@ const Orders = () => {
               <th className="py-3 px-4 text-left text-sm font-medium">Cliente</th>
               <th className="py-3 px-4 text-left text-sm font-medium">Data</th>
               <th className="py-3 px-4 text-left text-sm font-medium">Status</th>
-              <th className="py-3 px-4 text-left text-sm font-medium">Itens</th>
+              <th className="py-3 px-4 text-left text-sm font-medium">Observações</th>
               <th className="py-3 px-4 text-left text-sm font-medium">Valor</th>
               <th className="py-3 px-4 text-left text-sm font-medium sr-only">Ações</th>
             </tr>
           </thead>
           <tbody>
-            {filteredOrders.length > 0 ? (
-              filteredOrders.map((order, index) => (
-                <tr key={index} className="border-b hover:bg-muted/50">
+            {filteredPedidos.length > 0 ? (
+              filteredPedidos.map((pedido) => (
+                <tr key={pedido.id} className="border-b hover:bg-muted/50">
                   <td className="py-3 px-4 text-sm">
-                    <Link to={`/orders/${order.id}`} className="text-agro-primary hover:underline">
-                      {order.id}
+                    <Link to={`/orders/${pedido.id}`} className="text-agro-primary hover:underline">
+                      {pedido.id}
                     </Link>
                   </td>
-                  <td className="py-3 px-4 text-sm">{order.customer}</td>
-                  <td className="py-3 px-4 text-sm">{order.date}</td>
+                  <td className="py-3 px-4 text-sm">{pedido.cliente?.nome}</td>
                   <td className="py-3 px-4 text-sm">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                      {order.status}
+                    {format(new Date(pedido.created_at), "dd/MM/yyyy")}
+                  </td>
+                  <td className="py-3 px-4 text-sm">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(pedido.status)}`}>
+                      {pedido.status}
                     </span>
                   </td>
                   <td className="py-3 px-4 text-sm">
-                    <span className="max-w-xs overflow-hidden text-ellipsis">{order.items}</span>
+                    <span className="max-w-xs overflow-hidden text-ellipsis">
+                      {pedido.observacao || "Sem observações"}
+                    </span>
                   </td>
-                  <td className="py-3 px-4 text-sm font-medium">{order.amount}</td>
+                  <td className="py-3 px-4 text-sm font-medium">
+                    R$ {pedido.valor_total.toFixed(2)}
+                  </td>
                   <td className="py-3 px-4 text-right">
                     <Button variant="ghost" size="sm" asChild>
-                      <Link to={`/orders/${order.id}`}>Ver detalhes</Link>
+                      <Link to={`/orders/${pedido.id}`}>Ver detalhes</Link>
                     </Button>
                   </td>
                 </tr>

@@ -74,3 +74,13 @@ export type FormaPagamento = {
   nome: string
   descricao: string
 }
+
+export interface Produto {
+  id: string;
+  nome: string;
+  descricao: string;
+  categoria: string;
+  preco: number;
+  estoque: number;
+  created_at: string;
+}

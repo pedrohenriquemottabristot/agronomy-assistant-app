@@ -151,5 +151,71 @@ export const supabaseService = {
 
     if (error) throw error
     return data
-  }
+  },
+
+  // Produtos
+  async createProduto(produto: {
+    nome: string
+    descricao: string
+    categoria: string
+    preco: number
+    estoque: number
+  }) {
+    const { data, error } = await supabase
+      .from('produtos')
+      .insert([produto])
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async getProdutos() {
+    const { data, error } = await supabase
+      .from('produtos')
+      .select('*')
+      .order('nome')
+
+    if (error) throw error
+    return data
+  },
+
+  async getProdutoById(id: string) {
+    const { data, error } = await supabase
+      .from('produtos')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async updateProduto(id: string, produto: {
+    nome: string
+    descricao: string
+    categoria: string
+    preco: number
+    estoque: number
+  }) {
+    const { data, error } = await supabase
+      .from('produtos')
+      .update(produto)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async deleteProduto(id: string) {
+    const { error } = await supabase
+      .from('produtos')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+  },
 } 
