@@ -36,12 +36,25 @@ const Orders = () => {
     }
   };
 
+  const handleStatusChange = async (pedidoId: string, newStatus: Pedido['status']) => {
+    try {
+      await supabaseService.updatePedidoStatus(pedidoId, newStatus);
+      toast.success("Status do pedido atualizado com sucesso!");
+      loadPedidos();
+    } catch (error) {
+      console.error("Erro ao atualizar status:", error);
+      toast.error("Erro ao atualizar status do pedido");
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "entregue":
         return "bg-green-100 text-green-800";
-      case "aprovado":
+      case "em_preparo":
         return "bg-blue-100 text-blue-800";
+      case "em_entrega":
+        return "bg-purple-100 text-purple-800";
       case "pendente":
         return "bg-yellow-100 text-yellow-800";
       case "cancelado":
@@ -50,6 +63,17 @@ const Orders = () => {
         return "bg-gray-100 text-gray-800";
     }
   };
+
+  const getStatusLabel = (status: Pedido['status']) => {
+    const labels = {
+      pendente: 'Pendente',
+      em_preparo: 'Em Preparo',
+      em_entrega: 'Em Entrega',
+      entregue: 'Entregue',
+      cancelado: 'Cancelado'
+    }
+    return labels[status]
+  }
 
   // Filtragem de pedidos
   const filteredPedidos = pedidos.filter(pedido => {
@@ -102,7 +126,8 @@ const Orders = () => {
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="pendente">Pendente</SelectItem>
-              <SelectItem value="aprovado">Aprovado</SelectItem>
+              <SelectItem value="em_preparo">Em Preparo</SelectItem>
+              <SelectItem value="em_entrega">Em Entrega</SelectItem>
               <SelectItem value="entregue">Entregue</SelectItem>
               <SelectItem value="cancelado">Cancelado</SelectItem>
             </SelectContent>
@@ -134,17 +159,17 @@ const Orders = () => {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-md border">
-        <table className="w-full border-collapse">
+      <div className="rounded-md border">
+        <table className="w-full">
           <thead>
-            <tr className="bg-muted">
+            <tr className="border-b bg-muted/50">
               <th className="py-3 px-4 text-left text-sm font-medium">ID</th>
               <th className="py-3 px-4 text-left text-sm font-medium">Cliente</th>
               <th className="py-3 px-4 text-left text-sm font-medium">Data</th>
               <th className="py-3 px-4 text-left text-sm font-medium">Status</th>
-              <th className="py-3 px-4 text-left text-sm font-medium">Observações</th>
-              <th className="py-3 px-4 text-left text-sm font-medium">Valor</th>
-              <th className="py-3 px-4 text-left text-sm font-medium sr-only">Ações</th>
+              <th className="py-3 px-4 text-left text-sm font-medium">Observação</th>
+              <th className="py-3 px-4 text-left text-sm font-medium">Valor Total</th>
+              <th className="py-3 px-4 text-right text-sm font-medium">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -161,9 +186,25 @@ const Orders = () => {
                     {format(new Date(pedido.created_at), "dd/MM/yyyy")}
                   </td>
                   <td className="py-3 px-4 text-sm">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(pedido.status)}`}>
-                      {pedido.status}
-                    </span>
+                    <Select
+                      value={pedido.status}
+                      onValueChange={(value: Pedido['status']) => handleStatusChange(pedido.id, value)}
+                    >
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(pedido.status)}`}>
+                            {getStatusLabel(pedido.status)}
+                          </span>
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pendente">Pendente</SelectItem>
+                        <SelectItem value="em_preparo">Em Preparo</SelectItem>
+                        <SelectItem value="em_entrega">Em Entrega</SelectItem>
+                        <SelectItem value="entregue">Entregue</SelectItem>
+                        <SelectItem value="cancelado">Cancelado</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </td>
                   <td className="py-3 px-4 text-sm">
                     <span className="max-w-xs overflow-hidden text-ellipsis">

@@ -34,24 +34,48 @@ export const supabaseService = {
   },
 
   async updateCliente(id: string, cliente: { nome: string; email: string; telefone: string }) {
-    const { data, error } = await supabase
-      .from('clientes')
-      .update(cliente)
-      .eq('id', id)
-      .select()
-      .single()
+    try {
+      const { data, error } = await supabase
+        .from('clientes')
+        .update({
+          nome: cliente.nome,
+          email: cliente.email,
+          telefone: cliente.telefone
+        })
+        .eq('id', id)
+        .select('*')
 
-    if (error) throw error
-    return data
+      if (error) {
+        console.error('Erro ao atualizar cliente:', error)
+        throw error
+      }
+
+      if (!data || data.length === 0) {
+        throw new Error('Cliente não encontrado')
+      }
+
+      return data[0]
+    } catch (error) {
+      console.error('Erro ao atualizar cliente:', error)
+      throw error
+    }
   },
 
   async deleteCliente(id: string) {
-    const { error } = await supabase
-      .from('clientes')
-      .delete()
-      .eq('id', id)
+    try {
+      const { error } = await supabase
+        .from('clientes')
+        .delete()
+        .eq('id', id)
 
-    if (error) throw error
+      if (error) {
+        console.error('Erro ao excluir cliente:', error)
+        throw error
+      }
+    } catch (error) {
+      console.error('Erro ao excluir cliente:', error)
+      throw error
+    }
   },
 
   async getClienteById(id: string) {
@@ -148,6 +172,88 @@ export const supabaseService = {
         endereco:enderecos(*)
       `)
       .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data
+  },
+
+  async getPedidosRecentes(limit: number = 5) {
+    const { data, error } = await supabase
+      .from('pedidos')
+      .select(`
+        *,
+        cliente:clientes(*),
+        endereco:enderecos(*)
+      `)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    if (error) throw error
+    return data
+  },
+
+  async getResumoFinanceiro() {
+    const hoje = new Date()
+    const inicioDoMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1)
+    const fimDoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0)
+
+    const { data: pedidosMes, error: errorMes } = await supabase
+      .from('pedidos')
+      .select('valor_total, created_at')
+      .gte('created_at', inicioDoMes.toISOString())
+      .lte('created_at', fimDoMes.toISOString())
+
+    if (errorMes) throw errorMes
+
+    const { data: pedidosMesAnterior, error: errorMesAnterior } = await supabase
+      .from('pedidos')
+      .select('valor_total')
+      .gte('created_at', new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1).toISOString())
+      .lte('created_at', new Date(hoje.getFullYear(), hoje.getMonth(), 0).toISOString())
+
+    if (errorMesAnterior) throw errorMesAnterior
+
+    const totalVendasMes = pedidosMes.reduce((acc, pedido) => acc + pedido.valor_total, 0)
+    const totalVendasMesAnterior = pedidosMesAnterior.reduce((acc, pedido) => acc + pedido.valor_total, 0)
+    const variacao = totalVendasMesAnterior > 0 
+      ? ((totalVendasMes - totalVendasMesAnterior) / totalVendasMesAnterior) * 100 
+      : 0
+
+    return {
+      totalVendas: totalVendasMes,
+      numeroVendas: pedidosMes.length,
+      variacao: variacao
+    }
+  },
+
+  async getNumeroProdutos() {
+    const { count, error } = await supabase
+      .from('produtos')
+      .select('*', { count: 'exact', head: true })
+
+    if (error) throw error
+    return count || 0
+  },
+
+  async getNumeroClientes() {
+    const { count, error } = await supabase
+      .from('clientes')
+      .select('*', { count: 'exact', head: true })
+
+    if (error) throw error
+    return count || 0
+  },
+
+  async getPedido(id: string) {
+    const { data, error } = await supabase
+      .from('pedidos')
+      .select(`
+        *,
+        cliente:clientes(*),
+        endereco:enderecos(*)
+      `)
+      .eq('id', id)
+      .single()
 
     if (error) throw error
     return data

@@ -24,7 +24,7 @@ const Login = () => {
       console.log('Tentando fazer login com:', email);
       await login(email, password);
       console.log('Login bem sucedido');
-      navigate("/dashboard");
+      navigate("/");
     } catch (error) {
       console.error("Erro de login:", error);
       setError(error instanceof Error ? error.message : "Erro ao fazer login");

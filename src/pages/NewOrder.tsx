@@ -19,6 +19,7 @@ import { Plus, X, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabaseService } from "@/lib/services/supabaseService";
 import type { Cliente, Produto, Endereco } from "@/types";
+import { Textarea } from "@/components/ui/textarea";
 
 interface OrderItem {
   productId: string;
@@ -32,6 +33,8 @@ const NewOrder = () => {
   const [customerId, setCustomerId] = useState("");
   const [enderecoId, setEnderecoId] = useState("");
   const [formaPagamento, setFormaPagamento] = useState<"dinheiro" | "cartao_credito" | "cartao_debito" | "pix">("dinheiro");
+  const [status, setStatus] = useState<"pendente">("pendente");
+  const [observacao, setObservacao] = useState("");
   const [items, setItems] = useState<OrderItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState("");
   const [quantity, setQuantity] = useState(1);
@@ -149,7 +152,7 @@ const NewOrder = () => {
       await supabaseService.createPedido({
         cliente_id: customerId,
         endereco_id: enderecoId,
-        observacao: "Pedido criado via sistema",
+        observacao: observacao,
         forma_pagamento: formaPagamento,
         valor_total: calculateTotal(),
         status: "pendente"
@@ -295,6 +298,16 @@ const NewOrder = () => {
                     <SelectItem value="pix">PIX</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="observacao">Observação</Label>
+                <Textarea
+                  id="observacao"
+                  value={observacao}
+                  onChange={(e) => setObservacao(e.target.value)}
+                  placeholder="Digite uma observação para o pedido (opcional)"
+                />
               </div>
             </CardContent>
           </Card>

@@ -56,10 +56,11 @@ const Customers = () => {
       setIsDialogOpen(false);
       setIsEditMode(false);
       setSelectedCliente(null);
-      loadClientes();
-    } catch (error) {
+      await loadClientes();
+    } catch (error: any) {
       console.error("Erro ao salvar cliente:", error);
-      toast.error("Erro ao salvar cliente");
+      const errorMessage = error.message || "Erro ao salvar cliente";
+      toast.error(errorMessage);
     }
   };
 
@@ -79,10 +80,11 @@ const Customers = () => {
       try {
         await supabaseService.deleteCliente(cliente.id);
         toast.success("Cliente excluído com sucesso!");
-        loadClientes();
-      } catch (error) {
+        setClientes(clientes.filter(c => c.id !== cliente.id));
+      } catch (error: any) {
         console.error("Erro ao excluir cliente:", error);
-        toast.error("Erro ao excluir cliente");
+        const errorMessage = error.message || "Erro ao excluir cliente";
+        toast.error(errorMessage);
       }
     }
   };
@@ -124,10 +126,13 @@ const Customers = () => {
               Novo Cliente
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent aria-describedby="dialog-description">
             <DialogHeader>
-              <DialogTitle>{isEditMode ? "Editar Cliente" : "Cadastrar Novo Cliente"}</DialogTitle>
+              <DialogTitle>{isEditMode ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
             </DialogHeader>
+            <div id="dialog-description" className="sr-only">
+              {isEditMode ? "Formulário para editar os dados do cliente" : "Formulário para cadastrar um novo cliente"}
+            </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="nome">Nome</Label>

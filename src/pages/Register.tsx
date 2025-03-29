@@ -38,7 +38,7 @@ const Register = () => {
       console.log('Iniciando processo de registro...');
       await register(email, password, name);
       console.log('Registro concluído com sucesso');
-      navigate("/dashboard");
+      navigate("/");
     } catch (error) {
       console.error("Erro de cadastro:", error);
       setError(error instanceof Error ? error.message : "Erro ao realizar cadastro");
