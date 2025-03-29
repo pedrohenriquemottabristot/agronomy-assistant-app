@@ -1,10 +1,10 @@
-
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
 
 const Register = () => {
   const [name, setName] = useState("");
@@ -16,6 +16,7 @@ const Register = () => {
   
   const navigate = useNavigate();
   const { register } = useAuth();
+  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,13 +27,26 @@ const Register = () => {
       return;
     }
 
+    if (password.length < 6) {
+      setError("A senha deve ter no mínimo 6 caracteres");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
+      console.log('Iniciando processo de registro...');
       await register(email, password, name);
+      console.log('Registro concluído com sucesso');
       navigate("/dashboard");
     } catch (error) {
       console.error("Erro de cadastro:", error);
+      setError(error instanceof Error ? error.message : "Erro ao realizar cadastro");
+      toast({
+        title: "Erro no cadastro",
+        description: error instanceof Error ? error.message : "Ocorreu um erro ao realizar o cadastro",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -49,6 +63,11 @@ const Register = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="text-sm text-red-500 text-center">
+                {error}
+              </div>
+            )}
             <div className="space-y-2">
               <label htmlFor="name" className="text-sm font-medium">
                 Nome completo
@@ -100,22 +119,22 @@ const Register = () => {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
+                minLength={6}
               />
-              {error && <p className="text-destructive text-sm mt-1">{error}</p>}
             </div>
-            <Button 
-              type="submit" 
-              className="w-full bg-agro-primary hover:bg-agro-dark" 
+            <Button
+              type="submit"
+              className="w-full"
               disabled={isSubmitting}
             >
               {isSubmitting ? "Cadastrando..." : "Cadastrar"}
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="flex justify-center">
-          <div className="text-sm text-muted-foreground">
-            Já possui uma conta?{" "}
-            <Link to="/login" className="text-agro-primary hover:underline">
+        <CardFooter className="flex flex-col space-y-4">
+          <div className="text-sm text-center">
+            Já tem uma conta?{" "}
+            <Link to="/login" className="text-primary hover:underline">
               Faça login
             </Link>
           </div>

@@ -1,7 +1,7 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { User } from "@/types";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 
 interface AuthContextType {
   user: User | null;
@@ -9,7 +9,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -19,16 +19,6 @@ export const useAuth = () => useContext(AuthContext);
 interface AuthProviderProps {
   children: ReactNode;
 }
-
-// Mock de autenticação - será substituído pela integração com Supabase
-const mockUsers: User[] = [
-  {
-    id: "1",
-    email: "admin@agro.com",
-    name: "Administrador",
-    role: "admin",
-  },
-];
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -46,26 +36,57 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         localStorage.removeItem("user");
       }
     }
+
+    // Configurar listener de autenticação do Supabase
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        const userData: User = {
+          id: session.user.id,
+          email: session.user.email!,
+          name: session.user.user_metadata.name || 'Usuário',
+          role: session.user.user_metadata.role || 'user',
+        };
+        setUser(userData);
+        localStorage.setItem("user", JSON.stringify(userData));
+      } else {
+        setUser(null);
+        localStorage.removeItem("user");
+      }
+    });
+
     setIsLoading(false);
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Simulação de login - será substituído pela autenticação do Supabase
-      const user = mockUsers.find((u) => u.email === email);
-      
-      if (user && password === "123456") {
-        setUser(user);
-        localStorage.setItem("user", JSON.stringify(user));
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        const userData: User = {
+          id: data.user.id,
+          email: data.user.email!,
+          name: data.user.user_metadata.name || 'Usuário',
+          role: data.user.user_metadata.role || 'user',
+        };
+        setUser(userData);
+        localStorage.setItem("user", JSON.stringify(userData));
         toast({
           title: "Login realizado com sucesso",
-          description: `Bem-vindo, ${user.name}!`,
+          description: `Bem-vindo, ${userData.name}!`,
         });
-      } else {
-        throw new Error("Credenciais inválidas");
       }
     } catch (error) {
+      console.error('Erro de login:', error);
       toast({
         title: "Erro ao realizar login",
         description: error instanceof Error ? error.message : "Ocorreu um erro inesperado",
@@ -80,23 +101,44 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = async (email: string, password: string, name: string) => {
     setIsLoading(true);
     try {
-      // Simulação de registro - será substituído pelo Supabase
-      const newUser: User = {
-        id: String(Date.now()),
+      console.log('Tentando registrar com:', { email, name });
+      
+      const { data, error } = await supabase.auth.signUp({
         email,
-        name,
-        role: "user",
-      };
-      
-      mockUsers.push(newUser);
-      setUser(newUser);
-      localStorage.setItem("user", JSON.stringify(newUser));
-      
-      toast({
-        title: "Cadastro realizado com sucesso",
-        description: `Bem-vindo, ${name}!`,
+        password,
+        options: {
+          data: {
+            name,
+            role: 'user'
+          },
+          emailRedirectTo: `${window.location.origin}/dashboard`
+        }
       });
+
+      if (error) {
+        console.error('Erro detalhado:', error);
+        throw error;
+      }
+
+      console.log('Resposta do registro:', data);
+
+      if (data.user) {
+        const userData: User = {
+          id: data.user.id,
+          email: data.user.email!,
+          name: data.user.user_metadata.name || 'Usuário',
+          role: data.user.user_metadata.role || 'user',
+        };
+        setUser(userData);
+        localStorage.setItem("user", JSON.stringify(userData));
+        
+        toast({
+          title: "Cadastro realizado com sucesso",
+          description: `Bem-vindo, ${name}!`,
+        });
+      }
     } catch (error) {
+      console.error('Erro de registro:', error);
       toast({
         title: "Erro ao realizar cadastro",
         description: error instanceof Error ? error.message : "Ocorreu um erro inesperado",
@@ -108,12 +150,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("user");
-    toast({
-      title: "Logout realizado com sucesso",
-    });
+  const logout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      setUser(null);
+      localStorage.removeItem("user");
+      toast({
+        title: "Logout realizado com sucesso",
+        description: "Até logo!",
+      });
+    } catch (error) {
+      console.error('Erro de logout:', error);
+      toast({
+        title: "Erro ao realizar logout",
+        description: error instanceof Error ? error.message : "Ocorreu um erro inesperado",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
