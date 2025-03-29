@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +12,7 @@ import { Calendar as CalendarIcon, Plus, Search, Filter } from "lucide-react";
 
 const Orders = () => {
   const [date, setDate] = useState<Date>();
-  const [status, setStatus] = useState<string>("");
+  const [status, setStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   const orders = [
@@ -88,7 +87,7 @@ const Orders = () => {
       order.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.id.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const matchesStatus = status === "" || order.status === status;
+    const matchesStatus = status === "all" || order.status === status;
     
     return matchesSearch && matchesStatus;
   });
@@ -127,7 +126,7 @@ const Orders = () => {
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos</SelectItem>
+              <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="pendente">Pendente</SelectItem>
               <SelectItem value="aprovado">Aprovado</SelectItem>
               <SelectItem value="entregue">Entregue</SelectItem>
