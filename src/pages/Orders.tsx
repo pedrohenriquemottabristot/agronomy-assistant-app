@@ -83,7 +83,10 @@ const Orders = () => {
     
     const matchesStatus = status === "all" || pedido.status === status;
     
-    return matchesSearch && matchesStatus;
+    // Filtro por data
+    const matchesDate = !date || format(new Date(pedido.created_at), "yyyy-MM-dd") === format(date, "yyyy-MM-dd");
+    
+    return matchesSearch && matchesStatus && matchesDate;
   });
 
   if (isLoading) {
