@@ -45,26 +45,66 @@ const Customers = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (isEditMode && selectedCliente) {
-        await supabaseService.updateCliente(selectedCliente.id, formData);
-        toast.success("Cliente atualizado com sucesso!");
+      // Validação básica dos dados
+      if (!formData.nome || !formData.email || !formData.telefone) {
+        toast.error("Todos os campos são obrigatórios");
+        return;
+      }
+
+      // Validação de email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        toast.error("Por favor, insira um email válido");
+        return;
+      }
+
+      if (isEditMode && selectedCliente?.id) {
+        console.log('Dados do cliente selecionado:', selectedCliente);
+        console.log('Dados do formulário:', formData);
+        
+        // Garantir que o ID está presente
+        if (!selectedCliente.id) {
+          toast.error("ID do cliente não encontrado");
+          return;
+        }
+
+        try {
+          console.log('Iniciando atualização do cliente...');
+          const clienteAtualizado = await supabaseService.updateCliente(selectedCliente.id, formData);
+          console.log('Cliente atualizado:', clienteAtualizado);
+
+          // Atualizar o estado local com os novos dados
+          setClientes(clientes => 
+            clientes.map(c => c.id === selectedCliente.id ? clienteAtualizado : c)
+          );
+
+          toast.success("Cliente atualizado com sucesso!");
+        } catch (error: any) {
+          console.error("Erro ao atualizar cliente:", error);
+          const errorMessage = error.message || "Erro ao atualizar cliente. Verifique se todos os campos estão preenchidos corretamente.";
+          toast.error(errorMessage);
+          return;
+        }
       } else {
-        await supabaseService.createCliente(formData);
+        const novoCliente = await supabaseService.createCliente(formData);
+        setClientes(clientes => [...clientes, novoCliente]);
         toast.success("Cliente cadastrado com sucesso!");
       }
+      
+      // Limpar o formulário e fechar o diálogo
       setFormData({ nome: "", email: "", telefone: "" });
       setIsDialogOpen(false);
       setIsEditMode(false);
       setSelectedCliente(null);
-      await loadClientes();
     } catch (error: any) {
       console.error("Erro ao salvar cliente:", error);
-      const errorMessage = error.message || "Erro ao salvar cliente";
+      const errorMessage = error.message || "Erro ao salvar cliente. Tente novamente.";
       toast.error(errorMessage);
     }
   };
 
   const handleEdit = (cliente: Cliente) => {
+    console.log('Editando cliente:', cliente);
     setSelectedCliente(cliente);
     setFormData({
       nome: cliente.nome,
@@ -126,12 +166,12 @@ const Customers = () => {
               Novo Cliente
             </Button>
           </DialogTrigger>
-          <DialogContent aria-describedby="dialog-description">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>{isEditMode ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
             </DialogHeader>
-            <div id="dialog-description" className="sr-only">
-              {isEditMode ? "Formulário para editar os dados do cliente" : "Formulário para cadastrar um novo cliente"}
+            <div className="text-sm text-muted-foreground mb-4">
+              {isEditMode ? "Edite as informações do cliente abaixo" : "Preencha as informações do novo cliente"}
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">

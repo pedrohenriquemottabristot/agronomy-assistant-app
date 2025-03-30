@@ -35,29 +35,42 @@ export const supabaseService = {
 
   async updateCliente(id: string, cliente: { nome: string; email: string; telefone: string }) {
     try {
+      if (!id) {
+        throw new Error('ID do cliente é obrigatório');
+      }
+
+      // Validação dos dados
+      if (!cliente.nome || !cliente.email || !cliente.telefone) {
+        throw new Error('Todos os campos são obrigatórios');
+      }
+
+      // Formatação dos dados
+      const dadosAtualizados = {
+        nome: cliente.nome.trim(),
+        email: cliente.email.trim().toLowerCase(),
+        telefone: cliente.telefone.trim()
+      };
+
+      console.log('Tentando atualizar cliente:', { id, ...dadosAtualizados });
+
+      // Atualização com retorno dos dados atualizados
       const { data, error } = await supabase
         .from('clientes')
-        .update({
-          nome: cliente.nome,
-          email: cliente.email,
-          telefone: cliente.telefone
-        })
-        .eq('id', id)
+        .update(dadosAtualizados)
+        .eq('id', String(id))
         .select('*')
+        .single();
 
       if (error) {
-        console.error('Erro ao atualizar cliente:', error)
-        throw error
+        console.error('Erro ao atualizar cliente:', error);
+        throw error;
       }
 
-      if (!data || data.length === 0) {
-        throw new Error('Cliente não encontrado')
-      }
-
-      return data[0]
+      console.log('Cliente atualizado com sucesso:', data);
+      return data;
     } catch (error) {
-      console.error('Erro ao atualizar cliente:', error)
-      throw error
+      console.error('Erro ao atualizar cliente:', error);
+      throw error;
     }
   },
 
